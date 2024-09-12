@@ -16,6 +16,8 @@
     "discord-api-types": "^0.37.100",
     "discord.js": "^13.17.1",
     "dotenv": "^16.4.5",
-    "express": "^4.21.0"
+    "express": "^4.21.0",
+    "os": "^0.1.2",
+    "ping": "^0.4.4"
   }
 }
