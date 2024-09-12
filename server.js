@@ -46,7 +46,9 @@ let botData = {
     commandsExecuted: 0,
     uptime: 0,
     latency: 0,
-    commandStats: {}
+    commandStats: {},
+    isLocked: false // Add lock status to botData
+
 };
 
 // Discord bot events
@@ -101,6 +103,14 @@ client.on('interactionCreate', async (interaction) => {
     const command = client.commands.get(interaction.commandName);
 
     if (!command) return;
+
+     // Check if commands are locked
+     if (botData.isLocked && interaction.user.id !== process.env.BOT_OWNER_ID) {
+        return interaction.reply({
+            content: 'Commands are currently locked. Only the bot owner can use commands.',
+            ephemeral: true
+        });
+    }
 
     try {
         await command.execute(interaction);
