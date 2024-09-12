@@ -1,10 +1,9 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { MessageEmbed, MessageActionRow, MessageButton } = require('discord.js');
+const { MessageEmbed } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { tmpdir } = require('os');
 const axios = require('axios');
-const { Readable } = require('stream');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -44,19 +43,14 @@ module.exports = {
             const fileExtension = path.extname(file.name).toLowerCase();
 
             // Download the file from Discord's CDN
-            try {
-                const response = await axios.get(fileUrl, { responseType: 'stream' });
-                codeContent = await streamToString(response.data);
+            const response = await fetch(fileUrl);
+            codeContent = await response.text();
 
-                // Set file path based on language
-                filePath = path.join(tmpdir(), `debug-${Date.now()}${fileExtension}`);
-                fs.writeFileSync(filePath, codeContent);
-            } catch (error) {
-                console.error('Error downloading the file:', error);
-                return interaction.reply('There was an error downloading the file.');
-            }
+            // Set file path based on language
+            filePath = path.join(tmpdir(), `debug-${Date.now()}${fileExtension}`);
+            fs.writeFileSync(filePath, codeContent);
         } else {
-            filePath = path.join(tmpdir(), `debug-${Date.now()}.${language}`);
+            filePath = path.join(tmpdir(), `debug-${Date.now()}.${language === 'java' ? 'java' : language}`);
             fs.writeFileSync(filePath, codeContent);
         }
 
@@ -64,19 +58,18 @@ module.exports = {
 
         switch (language) {
             case 'java':
-                prompt = `Debug the following Java code and provide feedback. Separate the response into sections: Code Review, Output, Feedback, Suggestions.\n\n${codeContent}`;
+                prompt = `Debug the following Java code and provide feedback:\n\n${codeContent}`;
                 break;
             case 'javascript':
-                prompt = `Debug the following JavaScript code and provide feedback. Separate the response into sections: Code Review, Output, Feedback, Suggestions.\n\n${codeContent}`;
+                prompt = `Debug the following JavaScript code and provide feedback:\n\n${codeContent}`;
                 break;
             case 'python':
-                prompt = `Debug the following Python code and provide feedback. Separate the response into sections: Code Review, Output, Feedback, Suggestions.\n\n${codeContent}`;
+                prompt = `Debug the following Python code and provide feedback:\n\n${codeContent}`;
                 break;
             default:
                 return interaction.reply('Unsupported language.');
         }
 
-        
         // Send an initial message with an embed indicating processing
         const processingEmbed = new MessageEmbed()
             .setColor('#FFFF00') // Yellow color
@@ -109,60 +102,53 @@ module.exports = {
 
             const aiResponse = response.data.candidates[0].content.parts[0].text;
 
-            // Split the response into sections
-            const sections = {
-                codeReview: aiResponse.match(/(?<=--- Code Review ---)[\s\S]*?(?=--- Output ---)/)?.[0]?.trim() || 'No Code Review available.',
-                output: aiResponse.match(/(?<=--- Output ---)[\s\S]*?(?=--- Feedback ---)/)?.[0]?.trim() || 'No Output available.',
-                feedback: aiResponse.match(/(?<=--- Feedback ---)[\s\S]*?(?=--- Suggestions ---)/)?.[0]?.trim() || 'No Feedback available.',
-                suggestions: aiResponse.match(/(?<=--- Suggestions ---)[\s\S]*$/)?.[0]?.trim() || 'No Suggestions available.'
-            };
+            // Pagination logic if response exceeds Discord's embed field limit
+            const splitResponse = aiResponse.match(/[\s\S]{1,1000}/g); // Split response into chunks of 1000 characters
 
-            // Create embeds for each section
-            const embeds = [
-                new MessageEmbed()
+            const pages = splitResponse.map((chunk, index) => {
+                return new MessageEmbed()
                     .setColor('#FFFF00')
-                    .setTitle(`${language.charAt(0).toUpperCase() + language.slice(1)} Code Debugging (Code Review)`)
-                    .addField('Code Review', `\`\`\`\n${sections.codeReview}\n\`\`\``)
-                    .setTimestamp(),
-                new MessageEmbed()
-                    .setColor('#FFFF00')
-                    .setTitle(`${language.charAt(0).toUpperCase() + language.slice(1)} Code Debugging (Output)`)
-                    .addField('Output', `\`\`\`\n${sections.output}\n\`\`\``)
-                    .setTimestamp(),
-                new MessageEmbed()
-                    .setColor('#FFFF00')
-                    .setTitle(`${language.charAt(0).toUpperCase() + language.slice(1)} Code Debugging (Feedback)`)
-                    .addField('Feedback', `\`\`\`\n${sections.feedback}\n\`\`\``)
-                    .setTimestamp(),
-                new MessageEmbed()
-                    .setColor('#FFFF00')
-                    .setTitle(`${language.charAt(0).toUpperCase() + language.slice(1)} Code Debugging (Suggestions)`)
-                    .addField('Suggestions', `\`\`\`\n${sections.suggestions}\n\`\`\``)
-                    .setTimestamp()
-            ];
+                    .setTitle(`${language.charAt(0).toUpperCase() + language.slice(1)} Code Debugging (Page ${index + 1}/${splitResponse.length})`)
+                    .setDescription(`Here is the debugging feedback for your ${language} code:`)
+                    .addField('Output', `\`\`\`\n${chunk}\n\`\`\``)
+                    .setFooter(`Page ${index + 1} of ${splitResponse.length}`)
+                    .setTimestamp();
+            });
 
-            // Send paginated embeds with message buttons
+            // Send paginated embeds
             let currentPage = 0;
 
-            const message = await interaction.followUp({ embeds: [embeds[currentPage]], components: [getRow(currentPage, embeds.length)] });
+            const message = await interaction.followUp({ embeds: [pages[currentPage]] });
 
-            const filter = i => i.customId === 'prev' || i.customId === 'next';
+            if (pages.length > 1) {
+                // React with previous/next buttons
+                await message.react('⬅️');
+                await message.react('➡️');
 
-            const collector = message.createMessageComponentCollector({ filter, time: 60000 });
+                const filter = (reaction, user) => {
+                    return ['⬅️', '➡️'].includes(reaction.emoji.name) && user.id === interaction.user.id;
+                };
 
-            collector.on('collect', async i => {
-                if (i.customId === 'next' && currentPage < embeds.length - 1) {
-                    currentPage++;
-                } else if (i.customId === 'prev' && currentPage > 0) {
-                    currentPage--;
-                }
-                await i.update({ embeds: [embeds[currentPage]], components: [getRow(currentPage, embeds.length)] });
-            });
+                const collector = message.createReactionCollector({ filter, time: 60000 });
 
-            collector.on('end', () => {
-                message.edit({ components: [] });
-            });
+                collector.on('collect', reaction => {
+                    if (reaction.emoji.name === '➡️') {
+                        if (currentPage < pages.length - 1) {
+                            currentPage++;
+                            message.edit({ embeds: [pages[currentPage]] });
+                        }
+                    } else if (reaction.emoji.name === '⬅️') {
+                        if (currentPage > 0) {
+                            currentPage--;
+                            message.edit({ embeds: [pages[currentPage]] });
+                        }
+                    }
+                });
 
+                collector.on('end', () => {
+                    message.reactions.removeAll();
+                });
+            }
         } catch (error) {
             console.error('Error interacting with AI API:', error);
             return interaction.followUp('Sorry, I couldn\'t generate a response at the moment.');
@@ -172,30 +158,3 @@ module.exports = {
         }
     }
 };
-
-// Helper function to handle buttons
-function getRow(currentPage, totalPages) {
-    return new MessageActionRow()
-        .addComponents(
-            new MessageButton()
-                .setCustomId('prev')
-                .setLabel('Previous')
-                .setStyle('PRIMARY')
-                .setDisabled(currentPage === 0),
-            new MessageButton()
-                .setCustomId('next')
-                .setLabel('Next')
-                .setStyle('PRIMARY')
-                .setDisabled(currentPage === totalPages - 1)
-        );
-}
-
-// Helper function to convert stream to string
-async function streamToString(stream) {
-    return new Promise((resolve, reject) => {
-        const chunks = [];
-        stream.on('data', chunk => chunks.push(chunk));
-        stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-        stream.on('error', reject);
-    });
-}

@@ -30,7 +30,7 @@ module.exports = {
         try {
             // Generate code via AI
             const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GOOGLE_API_KEY}`, {
-                contents: [{ parts: [{ text: prompt }] }]
+                contents: [{ parts: [{ text: prompt + ": dont explain anything and dont include the ``` stuff for syntax " }] }]
             });
 
             const generatedCode = response.data.candidates[0].content.parts[0].text;
