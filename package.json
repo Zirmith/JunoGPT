@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "@discordjs/rest": "^2.4.0",
+    "axios": "^1.7.7",
     "chart.js": "^4.4.4",
     "discord-api-types": "^0.37.100",
     "discord.js": "^13.17.1",
