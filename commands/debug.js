@@ -3,7 +3,6 @@ const { MessageEmbed, MessageAttachment } = require('discord.js');
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const { tmpdir } = require('os');
 
 module.exports = {
@@ -23,37 +22,57 @@ module.exports = {
         .addStringOption(option =>
             option.setName('code')
                 .setDescription('The code you need help with')
-                .setRequired(true)
+                .setRequired(false)
+        )
+        .addAttachmentOption(option =>
+            option.setName('file')
+                .setDescription('Upload a file containing your code')
+                .setRequired(false)
         ),
     async execute(interaction) {
         const language = interaction.options.getString('language');
         const code = interaction.options.getString('code');
-        const tempDir = path.join(tmpdir(), `debug-${Date.now()}`);
-        fs.mkdirSync(tempDir, { recursive: true });
-        let filePath, classPath, logFilePath, execCommand;
+        const file = interaction.options.getAttachment('file');
+        
+        // Determine if code is provided as text or via file upload
+        let codeContent = code || '';
+        let filePath;
+        
+        if (file) {
+            const fileUrl = file.url;
+            const fileExtension = path.extname(file.name).toLowerCase();
+            
+            // Download the file from Discord's CDN
+            const response = await fetch(fileUrl);
+            codeContent = await response.text();
+            
+            // Set file path based on language
+            filePath = path.join(tmpdir(), `debug-${Date.now()}${fileExtension}`);
+            fs.writeFileSync(filePath, codeContent);
+        } else {
+            filePath = path.join(tmpdir(), `debug-${Date.now()}.${language === 'java' ? 'java' : language}`);
+            fs.writeFileSync(filePath, codeContent);
+        }
+        
+        let execCommand;
+        const tempDir = path.dirname(filePath);
+        let classPath, logFilePath;
 
-        // Set file paths and commands based on the language
         switch (language) {
             case 'java':
-                filePath = path.join(tempDir, 'Main.java');
                 classPath = path.join(tempDir, 'Main.class');
                 logFilePath = path.join(tempDir, 'compile.log');
                 execCommand = `javac ${filePath} 2> ${logFilePath}`;
                 break;
             case 'javascript':
-                filePath = path.join(tempDir, 'script.js');
                 execCommand = `node ${filePath}`;
                 break;
             case 'python':
-                filePath = path.join(tempDir, 'script.py');
                 execCommand = `python ${filePath}`;
                 break;
             default:
                 return interaction.reply('Unsupported language.');
         }
-
-        // Save the code to a file
-        fs.writeFileSync(filePath, code);
 
         // Send an initial message with an embed indicating processing
         const processingEmbed = new MessageEmbed()
@@ -122,7 +141,11 @@ module.exports = {
             }
 
             // Clean up temporary files
-            fs.rmdirSync(tempDir, { recursive: true });
+            fs.unlinkSync(filePath);
+            if (language === 'java') {
+                fs.unlinkSync(logFilePath);
+                if (fs.existsSync(classPath)) fs.unlinkSync(classPath);
+            }
         });
     }
 };
