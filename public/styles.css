@@ -97,16 +97,14 @@ header p {
     margin-top: 20px;
     font-size: 1.2em;
     color: #fff;
-    background-color: #f3c300; /* Yellow background */
+    background-color: transparent; /* Yellow background */
     border: none;
     border-radius: 5px;
     text-decoration: none;
     transition: background-color 0.3s ease;
 }
 
-.card .invite-button:hover {
-    background-color: #d4a300; /* Darker yellow on hover */
-}
+
 
 /* More Info Section Styling */
 .more-info {

@@ -157,7 +157,7 @@ app.get('/', (req, res) => {
                         <p><strong>ID:</strong> Classified</p>
                         <p><strong>Servers:</strong> ${botData.servers}</p>
                         <p><strong>Commands Executed:</strong> ${botData.commandsExecuted}</p>
-                        <p><strong>Latency:</strong> ${botData.latency} ms</p>
+                   
                         <a href="https://discord.com/oauth2/authorize?client_id=1283784636287156284&permissions=8&integration_type=0&scope=bot" class="invite-button" target="_blank">Invite JunoGPT to Your Server</a>
                     </div>
                 </div>
