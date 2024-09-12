@@ -4,9 +4,6 @@ const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { tmpdir } = require('os');
-const axios = require('axios');
-
-
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -36,19 +33,19 @@ module.exports = {
         const language = interaction.options.getString('language');
         const code = interaction.options.getString('code');
         const file = interaction.options.getAttachment('file');
-
+        
         // Determine if code is provided as text or via file upload
         let codeContent = code || '';
         let filePath;
-
+        
         if (file) {
             const fileUrl = file.url;
             const fileExtension = path.extname(file.name).toLowerCase();
-
+            
             // Download the file from Discord's CDN
             const response = await fetch(fileUrl);
             codeContent = await response.text();
-
+            
             // Set file path based on language
             filePath = path.join(tmpdir(), `debug-${Date.now()}${fileExtension}`);
             fs.writeFileSync(filePath, codeContent);
@@ -56,18 +53,22 @@ module.exports = {
             filePath = path.join(tmpdir(), `debug-${Date.now()}.${language === 'java' ? 'java' : language}`);
             fs.writeFileSync(filePath, codeContent);
         }
-
-        let prompt;
+        
+        let execCommand;
+        const tempDir = path.dirname(filePath);
+        let classPath, logFilePath;
 
         switch (language) {
             case 'java':
-                prompt = `Debug the following Java code and provide feedback:\n\n${codeContent}`;
+                classPath = path.join(tempDir, 'Main.class');
+                logFilePath = path.join(tempDir, 'compile.log');
+                execCommand = `javac ${filePath} 2> ${logFilePath}`;
                 break;
             case 'javascript':
-                prompt = `Debug the following JavaScript code and provide feedback:\n\n${codeContent}`;
+                execCommand = `node ${filePath}`;
                 break;
             case 'python':
-                prompt = `Debug the following Python code and provide feedback:\n\n${codeContent}`;
+                execCommand = `python ${filePath}`;
                 break;
             default:
                 return interaction.reply('Unsupported language.');
@@ -82,44 +83,69 @@ module.exports = {
 
         await interaction.reply({ embeds: [processingEmbed] });
 
-        try {
-            const response = await axios.post(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GOOGLE_API_KEY}`,
-                {
-                    contents: [
-                        {
-                            parts: [
-                                {
-                                    text: prompt
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+        // Compile or run the code
+        exec(execCommand, (error, stdout, stderr) => {
+            if (language === 'java') {
+                if (error) {
+                    // Read the log file
+                    const compileLog = fs.readFileSync(logFilePath, 'utf8');
+
+                    const embed = new MessageEmbed()
+                        .setColor('#FFFF00') // Yellow color
+                        .setTitle('Java Code Debugging')
+                        .setDescription('There was an error compiling your Java code.')
+                        .addField('Error', `\`\`\`\n${compileLog}\n\`\`\``)
+                        .setFooter('Make sure your code is valid Java code.')
+                        .setTimestamp();
+
+                    return interaction.followUp({ embeds: [embed] });
                 }
-            );
 
-            const aiResponse = response.data.candidates[0].content.parts[0].text;
+                if (!fs.existsSync(classPath)) {
+                    const embed = new MessageEmbed()
+                        .setColor('#FFFF00') // Yellow color
+                        .setTitle('Java Code Debugging')
+                        .setDescription('Compilation was successful, but no class file was generated.')
+                        .setFooter('Check your code for errors.')
+                        .setTimestamp();
 
-            const resultEmbed = new MessageEmbed()
-                .setColor('#FFFF00') // Yellow color
-                .setTitle(`${language.charAt(0).toUpperCase() + language.slice(1)} Code Debugging`)
-                .setDescription(`Here is the debugging feedback for your ${language} code:`)
-                .addField('Output', `\`\`\`\n${aiResponse}\n\`\`\``)
-                .setFooter('Here is the result and feedback from the AI.')
-                .setTimestamp();
+                    return interaction.followUp({ embeds: [embed] });
+                }
 
-            interaction.followUp({ embeds: [resultEmbed] });
-        } catch (error) {
-            console.error('Error interacting with AI API:', error);
-            return interaction.followUp('Sorry, I couldn\'t generate a response at the moment.');
-        } finally {
+                // Execute the compiled Java code
+                exec(`java -cp ${tempDir} Main`, (execError, execStdout, execStderr) => {
+                    const resultEmbed = new MessageEmbed()
+                        .setColor('#FFFF00') // Yellow color
+                        .setTitle('Java Code Debugging')
+                        .setDescription('Your Java code execution result:')
+                        .addField('Output', `\`\`\`\n${execStdout}\n\`\`\``)
+                        .addField('Errors', `\`\`\`\n${execStderr || execError?.message || 'No errors'}\n\`\`\``)
+                        .setFooter('Here is your result and logs.')
+                        .setTimestamp();
+
+                    const classFileAttachment = new MessageAttachment(classPath, 'Main.class');
+
+                    interaction.followUp({ embeds: [resultEmbed], files: [classFileAttachment] });
+                });
+            } else if (language === 'javascript' || language === 'python') {
+                const resultEmbed = new MessageEmbed()
+                    .setColor('#FFFF00') // Yellow color
+                    .setTitle(`${language.charAt(0).toUpperCase() + language.slice(1)} Code Debugging`)
+                    .setDescription(`Your ${language} code execution result:`)
+                    .addField('Output', `\`\`\`\n${stdout}\n\`\`\``)
+                    .addField('Errors', `\`\`\`\n${stderr || error?.message || 'No errors'}\n\`\`\``)
+                    .setFooter('Here is your result and logs.')
+                    .setTimestamp();
+
+                interaction.followUp({ embeds: [resultEmbed] });
+            }
+
             // Clean up temporary files
             fs.unlinkSync(filePath);
-        }
+            if (language === 'java') {
+                fs.unlinkSync(logFilePath);
+                if (fs.existsSync(classPath)) fs.unlinkSync(classPath);
+            }
+        });
     }
 };
