@@ -106,50 +106,41 @@ const PORT = 3000;
 // Serve static files for charts or other frontend assets (optional)
 app.use(express.static('public'));
 
-// Dashboard route to display bot stats
+// Dashboard route to display bot invite page
 app.get('/', (req, res) => {
     res.send(`
-        <html>
+        <!DOCTYPE html>
+        <html lang="en">
         <head>
-            <title>JunoGPT Bot Dashboard</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="description" content="JunoGPT Bot - Your advanced coding assistant. View bot details and invite it to your server.">
+            <meta property="og:title" content="JunoGPT Bot Invite Page">
+            <meta property="og:description" content="Explore JunoGPT Bot's features and invite it to your Discord server. Get real-time updates and stats about the bot's usage.">
+            <meta property="og:image" content="https://cdn.discordapp.com/banners/1283784636287156284/a_363525613836d9c62b50f1861667a48d.gif?size=4096">
+            <meta property="og:url" content="/">
+            <title>JunoGPT Bot Invite</title>
             <link rel="stylesheet" href="styles.css">
-            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         </head>
         <body>
             <div class="container">
-                <h1>JunoGPT Bot Dashboard</h1>
-                <p>Servers: ${botData.servers}</p>
-                <p>Commands Executed: ${botData.commandsExecuted}</p>
-                <canvas id="commandsChart" width="600" height="400"></canvas>
+                <div class="card">
+                    <div class="banner">
+                        <img src="https://cdn.discordapp.com/banners/1283784636287156284/a_363525613836d9c62b50f1861667a48d.gif?size=4096" alt="JunoGPT Bot Banner" class="banner-image">
+                    </div>
+                    <div class="bot-info">
+                        <img src="https://cdn.discordapp.com/avatars/1283784636287156284/a_ad38c8225d6996edf714eaee5becf747.gif?size=4096" alt="JunoGPT Bot Avatar" class="bot-avatar">
+                        <h1>JunoGPT</h1>
+                        <p><strong>Servers:</strong> ${botData.servers}</p>
+                        <p><strong>Commands Executed:</strong> ${botData.commandsExecuted}</p>
+                        <a href="https://discord.com/oauth2/authorize?client_id=1283784636287156284&permissions=8&integration_type=0&scope=bot" class="invite-button" target="_blank">Invite JunoGPT to Your Server</a>
+                    </div>
+                </div>
             </div>
-            <script>
-                const ctx = document.getElementById('commandsChart').getContext('2d');
-                const commandsChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(Object.keys(botData.commandStats))},
-                        datasets: [{
-                            label: '# of Executions',
-                            data: ${JSON.stringify(Object.values(botData.commandStats))},
-                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                            borderColor: 'rgba(75, 192, 192, 1)',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
-                        }
-                    }
-                });
-            </script>
         </body>
         </html>
     `);
 });
-
 
 // Route for Linked Roles Verification URL
 app.get('/verification', (req, res) => {
