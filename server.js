@@ -15,30 +15,63 @@ const client = new Client({
 // Create a collection to hold commands
 client.commands = new Collection();
 
-// Load all command files from the 'commands' folder
-const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+// Function to load and refresh commands
+async function loadCommands() {
+    const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 
-for (const file of commandFiles) {
-    const command = require(`./commands/${file}`);
-    client.commands.set(command.data.name, command);
-}
+    const newCommands = new Collection();
+    const commandData = [];
 
-// Register commands with Discord API
-const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+    for (const file of commandFiles) {
+        const command = require(`./commands/${file}`);
+        newCommands.set(command.data.name, command);
+        commandData.push(command.data.toJSON());
+    }
 
-(async () => {
+    // Detect new and removed commands
+    const previousCommands = client.commands;
+    const addedCommands = newCommands.filter(cmd => !previousCommands.has(cmd.data.name));
+    const removedCommands = previousCommands.filter(cmd => !newCommands.has(cmd.data.name));
+    const updatedCommands = newCommands.filter(cmd => {
+        const prev = previousCommands.get(cmd.data.name);
+        return prev && JSON.stringify(cmd.data.toJSON()) !== JSON.stringify(prev.data.toJSON());
+    });
+
+    // Update the client.commands collection
+    client.commands = newCommands;
+
+    // Register commands with Discord API
+    const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+
     try {
         console.log('Started refreshing application (/) commands.');
 
         await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
-            body: client.commands.map(command => command.data.toJSON()),
+            body: commandData,
         });
 
         console.log('Successfully reloaded application (/) commands.');
+
+        // Report changes
+        if (addedCommands.size > 0) {
+            console.log('Added commands:');
+            addedCommands.forEach(cmd => console.log(`- ${cmd.data.name}`));
+        }
+        if (removedCommands.size > 0) {
+            console.log('Removed commands:');
+            removedCommands.forEach(cmd => console.log(`- ${cmd.data.name}`));
+        }
+        if (updatedCommands.size > 0) {
+            console.log('Updated commands:');
+            updatedCommands.forEach(cmd => console.log(`- ${cmd.data.name}`));
+        }
     } catch (error) {
-        console.error(error);
+        console.error('Failed to reload commands:', error);
     }
-})();
+}
+
+// Load commands initially
+loadCommands();
 
 // Stats storage to track server and command execution stats
 let botData = {
