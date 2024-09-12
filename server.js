@@ -112,14 +112,16 @@ app.get('/', (req, res) => {
         <html>
         <head>
             <title>JunoGPT Bot Dashboard</title>
+            <link rel="stylesheet" href="styles.css">
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         </head>
         <body>
-            <h1>JunoGPT Bot Stats</h1>
-            <p>Servers: ${botData.servers}</p>
-            <p>Commands Executed: ${botData.commandsExecuted}</p>
-            <canvas id="commandsChart" width="400" height="200"></canvas>
-
+            <div class="container">
+                <h1>JunoGPT Bot Dashboard</h1>
+                <p>Servers: ${botData.servers}</p>
+                <p>Commands Executed: ${botData.commandsExecuted}</p>
+                <canvas id="commandsChart" width="600" height="400"></canvas>
+            </div>
             <script>
                 const ctx = document.getElementById('commandsChart').getContext('2d');
                 const commandsChart = new Chart(ctx, {
