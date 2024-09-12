@@ -1,0 +1,21 @@
+{
+  "name": "junogpt",
+  "version": "1.0.0",
+  "description": "JunoGPT brings programming assistance and community engagement together, with real-time insights to help your coding projects thrive. Whether you need quick programming help or want to track your bot's activity across servers, JunoGPT has you covered!",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@discordjs/rest": "^2.4.0",
+    "chart.js": "^4.4.4",
+    "discord-api-types": "^0.37.100",
+    "discord.js": "^13.17.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0"
+  }
+}
