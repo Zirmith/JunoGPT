@@ -1,14 +1,9 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { MessageEmbed, MessageAttachment } = require('discord.js');
-const { exec } = require('child_process');
+const { MessageEmbed } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { tmpdir } = require('os');
 const axios = require('axios');
-
-const introduction = `
-Hello! Please provide the code you need help with, and I'll debug it and give you the output. How can I assist you today?
-`;
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -107,15 +102,53 @@ module.exports = {
 
             const aiResponse = response.data.candidates[0].content.parts[0].text;
 
-            const resultEmbed = new MessageEmbed()
-                .setColor('#FFFF00') // Yellow color
-                .setTitle(`${language.charAt(0).toUpperCase() + language.slice(1)} Code Debugging`)
-                .setDescription(`Here is the debugging feedback for your ${language} code:`)
-                .addField('Output', `\`\`\`\n${aiResponse}\n\`\`\``)
-                .setFooter('Here is the result and feedback from the AI.')
-                .setTimestamp();
+            // Pagination logic if response exceeds Discord's embed field limit
+            const splitResponse = aiResponse.match(/[\s\S]{1,1000}/g); // Split response into chunks of 1000 characters
 
-            interaction.followUp({ embeds: [resultEmbed] });
+            const pages = splitResponse.map((chunk, index) => {
+                return new MessageEmbed()
+                    .setColor('#FFFF00')
+                    .setTitle(`${language.charAt(0).toUpperCase() + language.slice(1)} Code Debugging (Page ${index + 1}/${splitResponse.length})`)
+                    .setDescription(`Here is the debugging feedback for your ${language} code:`)
+                    .addField('Output', `\`\`\`\n${chunk}\n\`\`\``)
+                    .setFooter(`Page ${index + 1} of ${splitResponse.length}`)
+                    .setTimestamp();
+            });
+
+            // Send paginated embeds
+            let currentPage = 0;
+
+            const message = await interaction.followUp({ embeds: [pages[currentPage]] });
+
+            if (pages.length > 1) {
+                // React with previous/next buttons
+                await message.react('⬅️');
+                await message.react('➡️');
+
+                const filter = (reaction, user) => {
+                    return ['⬅️', '➡️'].includes(reaction.emoji.name) && user.id === interaction.user.id;
+                };
+
+                const collector = message.createReactionCollector({ filter, time: 60000 });
+
+                collector.on('collect', reaction => {
+                    if (reaction.emoji.name === '➡️') {
+                        if (currentPage < pages.length - 1) {
+                            currentPage++;
+                            message.edit({ embeds: [pages[currentPage]] });
+                        }
+                    } else if (reaction.emoji.name === '⬅️') {
+                        if (currentPage > 0) {
+                            currentPage--;
+                            message.edit({ embeds: [pages[currentPage]] });
+                        }
+                    }
+                });
+
+                collector.on('end', () => {
+                    message.reactions.removeAll();
+                });
+            }
         } catch (error) {
             console.error('Error interacting with AI API:', error);
             return interaction.followUp('Sorry, I couldn\'t generate a response at the moment.');
