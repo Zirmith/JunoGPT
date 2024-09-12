@@ -1,9 +1,10 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { MessageEmbed, MessageAttachment } = require('discord.js');
 const { exec } = require('child_process');
-const tempfile = require('tempfile');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const { tmpdir } = require('os');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -27,7 +28,8 @@ module.exports = {
     async execute(interaction) {
         const language = interaction.options.getString('language');
         const code = interaction.options.getString('code');
-        const tempDir = tempfile();
+        const tempDir = path.join(tmpdir(), `debug-${Date.now()}`);
+        fs.mkdirSync(tempDir, { recursive: true });
         let filePath, classPath, logFilePath, execCommand;
 
         // Set file paths and commands based on the language
@@ -118,6 +120,9 @@ module.exports = {
 
                 interaction.followUp({ embeds: [resultEmbed] });
             }
+
+            // Clean up temporary files
+            fs.rmdirSync(tempDir, { recursive: true });
         });
     }
 };
