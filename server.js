@@ -154,7 +154,7 @@ app.get('/', (req, res) => {
                     <div class="bot-info">
                         <img src="https://cdn.discordapp.com/avatars/1283784636287156284/a_ad38c8225d6996edf714eaee5becf747.gif?size=4096" alt="JunoGPT Bot Avatar" class="bot-avatar">
                         <h2>JunoGPT</h2>
-                        <p><strong>ID:</strong> 1283784636287156284</p>
+                        <p><strong>ID:</strong> Classified</p>
                         <p><strong>Servers:</strong> ${botData.servers}</p>
                         <p><strong>Commands Executed:</strong> ${botData.commandsExecuted}</p>
                         <p><strong>Latency:</strong> ${botData.latency} ms</p>
