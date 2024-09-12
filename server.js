@@ -122,6 +122,52 @@ app.get('/', (req, res) => {
     `);
 });
 
+
+// Route for Linked Roles Verification URL
+app.get('/verification', (req, res) => {
+    res.send(`
+        <html>
+        <head>
+            <title>Linked Roles Verification</title>
+        </head>
+        <body>
+            <h1>Linked Roles Verification</h1>
+            <p>This is the Linked Roles Verification URL for your application.</p>
+        </body>
+        </html>
+    `);
+});
+
+// Route for Terms of Service URL
+app.get('/terms', (req, res) => {
+    res.send(`
+        <html>
+        <head>
+            <title>Terms of Service</title>
+        </head>
+        <body>
+            <h1>Terms of Service</h1>
+            <p>This is the Terms of Service for your application.</p>
+        </body>
+        </html>
+    `);
+});
+
+// Route for Privacy Policy URL
+app.get('/privacy', (req, res) => {
+    res.send(`
+        <html>
+        <head>
+            <title>Privacy Policy</title>
+        </head>
+        <body>
+            <h1>Privacy Policy</h1>
+            <p>This is the Privacy Policy for your application.</p>
+        </body>
+        </html>
+    `);
+});
+
 // Start the Express server
 app.listen(PORT, () => {
     console.log(`Dashboard running at http://localhost:${PORT}`);
