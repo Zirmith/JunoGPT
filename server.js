@@ -46,9 +46,35 @@ let botData = {
 };
 
 // Discord bot events
+// Discord bot events
 client.once('ready', () => {
     botData.servers = client.guilds.cache.size;
     console.log(`Logged in as ${client.user.tag}`);
+    
+    // Set the bot status to idle and cycling activity/status
+    const activities = [
+        'Helping with coding questions',
+        'Tracking command usage stats',
+        'Monitoring server performance',
+        'Providing real-time programming assistance',
+    ];
+
+    let i = 0;
+
+    // Function to cycle through activities
+    const cycleActivities = () => {
+        client.user.setPresence({
+            status: 'idle',
+            activities: [{ name: activities[i], type: 'PLAYING' }],
+        });
+        i = (i + 1) % activities.length;
+    };
+
+    // Initial activity
+    cycleActivities();
+    
+    // Cycle activities every 10 seconds
+    setInterval(cycleActivities, 10000);
 });
 
 client.on('interactionCreate', async (interaction) => {
