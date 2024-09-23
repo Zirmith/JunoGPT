@@ -40,7 +40,7 @@ module.exports = {
         const exploitLevel = interaction.options.getString('exploit_level') || 'any';
 
         // Custom prompt for generating snippets with specific exploit functions or Synapse methods
-        const prompt = `Create a ${language} code snippet for a Roblox exploit or Synapse function. The exploit level is ${exploitLevel}. The task is: ${description}.`;
+        const prompt = `Create a ${language} code snippet for a Roblox  function. The  level is ${exploitLevel}. The task is: ${description}.`;
 
         // Initial embed message while processing
         const processingEmbed = new MessageEmbed()
